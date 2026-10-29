@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة المذاكرة الذكية</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --secondary: #0056b3;
+            --bg: #f4f4f9;
+            --white: #ffffff;
+            --gray: #e9ecef;
+            --success: #28a745;
+            --accent-streak: #ff9800;
+            --accent-points: #ffc107;
+            --text: #333;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        header { background-color: var(--primary); color: var(--white); padding: 1rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 800px; margin: 2rem auto; padding: 1rem; background: var(--white); border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .path-selection { text-align: center; padding: 2rem 0; }
+        .btn { display: block; width: 100%; padding: 1rem; margin: 1rem 0; background-color: var(--primary); color: var(--white); border: none; border-radius: 4px; font-size: 1.2rem; cursor: pointer; transition: background 0.3s; }
+        .btn:hover { background-color: var(--secondary); }
+        .dashboard { display: none; }
+        .stats { display: flex; justify-content: space-around; margin-bottom: 2rem; }
+        .stat-box { text-align: center; background: var(--gray); padding: 1rem; border-radius: 8px; width: 30%; }
+        .stat-box span { font-size: 2rem; display: block; }
+        .module-list { list-style: none; padding: 0; margin-top: 1rem; }
+        .module-item { background: var(--white); border: 1px solid #ddd; padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; cursor: move; transition: transform 0.2s; }
+        .module-item:hover { transform: scale(1.02); }
+        .fab-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 1rem; }
+        .fab { background-color: var(--primary); color: var(--white); border-radius: 50%; width: 3.5rem; height: 3.5rem; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; }
+        .fab.fab-success { background-color: var(--success); }
+        .fab.fab-stats { background-color: #17a2b8; }
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: var(--white); margin: 10% auto; padding: 2rem; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .close { cursor: pointer; font-size: 1.5rem; }
+        .chat-container { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; background: var(--gray); }
+        .chat-input { display: flex; gap: 0.5rem; }
+        .chat-input input { flex: 1; padding: 0.5rem; border: 1px solid #ccc; }
+        .chat-message { margin-bottom: 0.5rem; }
+        .chat-message.user { text-align: left; color: var(--secondary); background: #cce5ff; padding: 0.5rem; border-radius: 4px; }
+        .chat-message.ai { text-align: right; color: var(--success); background: #d4edda; padding: 0.5rem; border-radius: 4px; }
+        .timer-display { text-align: center; font-size: 3rem; font-weight: bold; margin: 2rem 0; }
+        .progress-container { background: #eee; border-radius: 10px; height: 15px; width: 100%; margin: 10px 0; }
+        .progress-bar { background: var(--primary); height: 100%; border-radius: 10px; width: 0%; }
+        .stats-screen { display: none; }
+        .chart-card { background: var(--gray); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem; }
+        .chart-card h2 { margin: 0.5rem 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>منصة المذاكرة الذكية</h1>
+</header>
+
+<div class="container" id="app">
+    <!-- شاشة اختيار المسار -->
+    <div id="path-selection" class="path-selection">
+        <h2>اختر مسارك الدراسي</h2>
+        <button class="btn" onclick="selectPath('علمي رياضة')">علمي رياضة</button>
+        <button class="btn" onclick="selectPath('علمي علوم')">علمي علوم</button>
+        <button class="btn" onclick="selectPath('أدبي')">أدبي</button>
+    </div>
+
+    <!-- لوحة التحكم -->
+    <div id="dashboard" class="dashboard">
+        <div class="stats">
+            <div class="stat-box">
+                <span style="color: var(--accent-points);">⭐</span>
+                <h3>النقاط</h3>
+                <p id="points-count">0</p>
+            </div>
+            <div class="stat-box">
+                <span style="color: var(--accent-streak);">🔥</span>
+                <h3>السلسلة</h3>
+                <p id="streak-count">1</p>
+            </div>
+            <div class="stat-box">
+                <span>📊</span>
+                <h3>التقدم</h3>
+                <p id="progress-text">0/6</p>
+            </div>
+        </div>
+        
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
+        <ul class="module-list" id="module-list" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <!-- المواد ستظهر هنا -->
+        </ul>
+        
+        <div class="fab-container">
+            <button class="fab fab-stats" onclick="toggleScreen('stats-screen')">📊</button>
+            <button class="fab" onclick="toggleModal('chat-modal')">💬</button>
+            <button class="fab fab-success" onclick="completeDailyTasks()">✓</button>
+        </div>
+    </div>
+
+    <!-- شاشة الإحصائيات -->
+    <div id="stats-screen" class="stats-screen">
+        <div class="modal-header">
+            <h2>إحصائيات التقدم</h2>
+            <span class="close" onclick="toggleScreen('stats-screen')">&times;</span>
+        </div>
+        <div class="chart-card">
+            <h3>المحاضرات المكتملة</h3>
+            <h2 id="stats-progress">0/6</h2>
+            <div class="progress-container">
+                <div id="stats-progress-bar" class="progress-bar"></div>
+            </div>
+        </div>
+        <div class="stats">
+            <div class="stat-box">
+                <h3>النقاط</h3>
+                <p id="stats-points">0</p>
+            </div>
+            <div class="stat-box">
+                <h3>السلسلة اليومية</h3>
+                <p id="stats-streak">1</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تفاصيل المحاضرة -->
+<div id="module-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="module-title-modal">المحاضرة</h2>
+            <span class="close" onclick="toggleModal('module-modal')">&times;</span>
+        </div>
+        <div class="timer-display" id="timer-display">30:00</div>
+        <button class="btn" onclick="startTimer()">بدء المذاكرة</button>
+    </div>
+</div>
+
+<!-- مودال المساعد الذكي -->
+<div id="chat-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>المساعد الذكي</h2>
+            <span class="close" onclick="toggleModal('chat-modal')">&times;</span>
+        </div>
+        <div class="chat-container" id="chat-container">
+            <div class="chat-message ai">أهلاً بك! أنا هنا لمساعدتك في فهم المواد الدراسية.</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chat-inp" placeholder="اكتب سؤالك هنا...">
+            <button class="btn" style="width: auto; margin:0;" onclick="sendMessage()">إرسال</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedPath = '';
+    let dailyStreak = 1;
+    let points = 0;
+    let modules = [];
+    let completedModules = 0;
+    let totalModules = 6;
+    let currentScreen = 'dashboard';
+
+    function selectPath(path) {
+        selectedPath = path;
+        if (path === 'علمي رياضة') {
+            modules = ['اللغة العربية 📚', 'الانجليزية 🔤', 'الرياضيات ➕', 'الفيزياء 🔬', 'الكيمياء 🧪', 'الاستاتيكا/الديناميكا 📐'];
+        } else if (path === 'علمي علوم') {
+            modules = ['اللغة العربية 📚', 'الانجليزية 🔤', 'الرياضيات ➕', 'الفيزياء 🔬', 'الكيمياء 🧪', 'الأحياء 🧬'];
+        } else if (path === 'أدبي') {
+            modules = ['اللغة العربية 📚', 'الانجليزية 🔤', 'التاريخ 📜', 'الجغرافيا 🌍', 'علم النفس 🧠', 'الفلسفة 🤔'];
+        }
+        showDashboard();
+    }
+
+    function showDashboard() {
+        document.getElementById('path-selection').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        renderModules();
+    }
+
+    function renderModules() {
+        const list = document.getElementById('module-list');
+        list.innerHTML = '';
+        modules.forEach((module, index) => {
+            const li = document.createElement('li');
+            li.className = 'module-item';
+            li.draggable = true;
+            li.id = 'module-' + index;
+            li.ondragstart = function(ev) { ev.dataTransfer.setData("text", ev.target.id); };
+            li.innerHTML = `<span>${module}</span> <button class="btn" style="width: auto; margin:0;" onclick="openModuleDetail('${module}')">فتح</button>`;
+            list.appendChild(li);
+        });
+    }
+
+    function allowDrop(ev) { ev.preventDefault(); }
+
+    function drop(ev) {
+        ev.preventDefault();
+        var data = ev.dataTransfer.getData("text");
+        var draggedElement = document.getElementById(data);
+        var dropzone = ev.target.closest('.module-item');
+        
+        if (dropzone && draggedElement !== dropzone) {
+            var list = document.getElementById('module-list');
+            var allElements = Array.from(list.getElementsByClassName('module-item'));
+            var draggedIndex = allElements.indexOf(draggedElement);
+            var dropIndex = allElements.indexOf(dropzone);
+            
+            if (draggedIndex > dropIndex) {
+                list.insertBefore(draggedElement, dropzone);
+            } else {
+                list.insertBefore(draggedElement, dropzone.nextSibling);
+            }
+        }
+    }
+
+    function toggleModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function toggleScreen(screenId) {
+        const screen = document.getElementById(screenId);
+        const dashboard = document.getElementById('dashboard');
+        if (currentScreen === 'dashboard') {
+            dashboard.style.display = 'none';
+            screen.style.display = 'block';
+            currentScreen = screenId;
+            updateStatsScreen();
+        } else {
+            screen.style.display = 'none';
+            dashboard.style.display = 'block';
+            currentScreen = 'dashboard';
+        }
+    }
+
+    function openModuleDetail(title) {
+        document.getElementById('module-title-modal').innerText = title;
+        toggleModal('module-modal');
+    }
+
+    function completeDailyTasks() {
+        if (completedModules < totalModules) {
+            completedModules++;
+            points += 10;
+            updateProgress();
+            
+            if (completedModules === totalModules) {
+                dailyStreak++;
+                points += 50;
+                document.getElementById('streak-count').innerText = dailyStreak;
+                alert('ممتاز! لقد أتممت مهام اليوم. ربحت مكافأة إضافية!');
+            }
+        } else {
+            alert('لقد أتممت كل مهام المسار لهذا اليوم!');
+        }
+    }
+
+    function updateProgress() {
+        document.getElementById('points-count').innerText = points;
+        document.getElementById('progress-text').innerText = `${completedModules}/${totalModules}`;
+        document.getElementById('progress-bar').style.width = `${(completedModules / totalModules) * 100}%`;
+    }
+
+    function updateStatsScreen() {
+        document.getElementById('stats-progress').innerText = `${completedModules}/${totalModules}`;
+        document.getElementById('stats-progress-bar').style.width = `${(completedModules / totalModules) * 100}%`;
+        document.getElementById('stats-points').innerText = points;
+        document.getElementById('stats-streak').innerText = dailyStreak;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chat-inp');
+        const text = input.value;
+        if (text.trim() !== '') {
+            const container = document.getElementById('chat-container');
+            container.innerHTML += `<div class="chat-message user">أنت: ${text}</div>`;
+            input.value = '';
+            
+            setTimeout(() => {
+                container.innerHTML += `<div class="chat-message ai">المساعد: أنا هنا لمساعدتك في فهم المواد الدراسية.</div>`;
+                container.scrollTop = container.scrollHeight;
+            }, 500);
+        }
+    }
+</script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة المذاكرة الذكية</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --secondary: #0056b3;
+            --bg: #f4f4f9;
+            --white: #ffffff;
+            --gray: #e9ecef;
+            --success: #28a745;
+            --accent-streak: #ff9800;
+            --accent-points: #ffc107;
+            --text: #333;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        header { background-color: var(--primary); color: var(--white); padding: 1rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 800px; margin: 2rem auto; padding: 1rem; background: var(--white); border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .path-selection { text-align: center; padding: 2rem 0; }
+        .btn { display: block; width: 100%; padding: 1rem; margin: 1rem 0; background-color: var(--primary); color: var(--white); border: none; border-radius: 4px; font-size: 1.2rem; cursor: pointer; transition: background 0.3s; }
+        .btn:hover { background-color: var(--secondary); }
+        .dashboard { display: none; }
+        .stats { display: flex; justify-content: space-around; margin-bottom: 2rem; }
+        .stat-box { text-align: center; background: var(--gray); padding: 1rem; border-radius: 8px; width: 30%; }
+        .stat-box span { font-size: 2rem; display: block; }
+        .module-list { list-style: none; padding: 0; margin-top: 1rem; }
+        .module-item { background: var(--white); border: 1px solid #ddd; padding: 1rem; margin-bottom: 0.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; cursor: move; transition: transform 0.2s; }
+        .module-item:hover { transform: scale(1.02); }
+        .fab-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 1rem; }
+        .fab { background-color: var(--primary); color: var(--white); border-radius: 50%; width: 3.5rem; height: 3.5rem; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; }
+        .fab.fab-success { background-color: var(--success); }
+        .fab.fab-stats { background-color: #17a2b8; }
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: var(--white); margin: 10% auto; padding: 2rem; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .close { cursor: pointer; font-size: 1.5rem; }
+        .chat-container { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; background: var(--gray); }
+        .chat-input { display: flex; gap: 0.5rem; }
+        .chat-input input { flex: 1; padding: 0.5rem; border: 1px solid #ccc; }
+        .chat-message { margin-bottom: 0.5rem; }
+        .chat-message.user { text-align: left; color: var(--secondary); background: #cce5ff; padding: 0.5rem; border-radius: 4px; }
+        .chat-message.ai { text-align: right; color: var(--success); background: #d4edda; padding: 0.5rem; border-radius: 4px; }
+        .timer-display { text-align: center; font-size: 3rem; font-weight: bold; margin: 2rem 0; }
+        .progress-container { background: #eee; border-radius: 10px; height: 15px; width: 100%; margin: 10px 0; }
+        .progress-bar { background: var(--primary); height: 100%; border-radius: 10px; width: 0%; }
+        .stats-screen { display: none; }
+        .chart-card { background: var(--gray); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem; }
+        .chart-card h2 { margin: 0.5rem 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>منصة المذاكرة الذكية</h1>
+</header>
+
+<div class="container" id="app">
+    <!-- شاشة اختيار المسار -->
+    <div id="path-selection" class="path-selection">
+        <h2>اختر مسارك الدراسي</h2>
+        <button class="btn" onclick="selectPath('علمي رياضة')">علمي رياضة</button>
+        <button class="btn" onclick="selectPath('علمي علوم')">علمي علوم</button>
+        <button class="btn" onclick="selectPath('أدبي')">أدبي</button>
+    </div>
+
+    <!-- لوحة التحكم -->
+    <div id="dashboard" class="dashboard">
+        <div class="stats">
+            <div class="stat-box">
+                <span style="color: var(--accent-points);">⭐</span>
+                <h3>النقاط</h3>
+                <p id="points-count">0</p>
+            </div>
+            <div class="stat-box">
+                <span style="color: var(--accent-streak);">🔥</span>
+                <h3>السلسلة</h3>
+                <p id="streak-count">1</p>
+            </div>
+            <div class="stat-box">
+                <span>📊</span>
+                <h3>التقدم</h3>
+                <p id="progress-text">0/6</p>
+            </div>
+        </div>
+        
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
+        <ul class="module-list" id="module-list" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <!-- المواد ستظهر هنا -->
+        </ul>
+        
+        <div class="fab-container">
+            <button class="fab fab-stats" onclick="toggleScreen('stats-screen')">📊</button>
+            <button class="fab" onclick="toggleModal('chat-modal')">💬</button>
+            <button class="fab fab-success" onclick="completeDailyTasks()">✓</button>
+        </div>
+    </div>
+
+    <!-- شاشة الإحصائيات -->
+    <div id="stats-screen" class="stats-screen">
+        <div class="modal-header">
+            <h2>إحصائيات التقدم</h2>
+            <span class="close" onclick="toggleScreen('stats-screen')">&times;</span>
+        </div>
+        <div class="chart-card">
+            <h3>المحاضرات المكتملة</h3>
+            <h2 id="stats-progress">0/6</h2>
+            <div class="progress-container">
+                <div id="stats-progress-bar" class="progress-bar"></div>
+            </div>
+        </div>
+        <div class="stats">
+            <div class="stat-box">
+                <h3>النقاط</h3>
+                <p id="stats-points">0</p>
+            </div>
+            <div class="stat-box">
+                <h3>السلسلة اليومية</h3>
+                <p id="stats-streak">1</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تفاصيل المحاضرة -->
+<div id="module-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="module-title-modal">المحاضرة</h2>
+            <span class="close" onclick="toggleModal('module-modal')">&times;</span>
+        </div>
+        <div class="timer-display" id="timer-display">30:00</div>
+        <button class="btn" onclick="startTimer()">بدء المذاكرة</button>
+    </div>
+</div>
+
+<!-- مودال المساعد الذكي -->
+<div id="chat-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>المساعد الذكي</h2>
+            <span class="close" onclick="toggleModal('chat-modal')">&times;</span>
+        </div>
+        <div class="chat-container" id="chat-container">
+            <div class="chat-message ai">أهلاً بك! أنا هنا لمساعدتك في فهم المواد الدراسية.</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chat-inp" placeholder="اكتب سؤالك هنا...">
+            <button class="btn" style="width: auto; margin:0;" onclick="sendMessage()">إرسال</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedPath = '';
+    let dailyStreak = 1;
+    let points = 0;
+    let modules = [];
+    let completedModules = 0;
+    let totalModules = 6;
+    let currentScreen = 'dashboard';
+
+    function selectPath(path) {
+        selectedPath = path;
+        if (path === 'علمي رياضة') {
+            modules = ['اللغة العربية 📚', 'الانجليزية 🔤', 'الرياضيات ➕', 'الفيزياء 🔬', 'الكيمياء 🧪', 'الاستاتيكا/الديناميكا 📐'];
+        } else if (path === 'علمي علوم') {
+            modules = ['اللغة العربية 📚', 'الانجليزية 🔤', 'الرياضيات ➕', 'الفيزياء 🔬', 'الكيمياء 🧪', 'الأحياء 🧬'];
+        } else if (path === 'أدبي') {
+            modules = ['اللغة العربية 📚', 'الانجليزية 🔤', 'التاريخ 📜', 'الجغرافيا 🌍', 'علم النفس 🧠', 'الفلسفة 🤔'];
+        }
+        showDashboard();
+    }
+
+    function showDashboard() {
+        document.getElementById('path-selection').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        renderModules();
+    }
+
+    function renderModules() {
+        const list = document.getElementById('module-list');
+        list.innerHTML = '';
+        modules.forEach((module, index) => {
+            const li = document.createElement('li');
+            li.className = 'module-item';
+            li.draggable = true;
+            li.id = 'module-' + index;
+            li.ondragstart = function(ev) { ev.dataTransfer.setData("text", ev.target.id); };
+            li.innerHTML = `<span>${module}</span> <button class="btn" style="width: auto; margin:0;" onclick="openModuleDetail('${module}')">فتح</button>`;
+            list.appendChild(li);
+        });
+    }
+
+    function allowDrop(ev) { ev.preventDefault(); }
+
+    function drop(ev) {
+        ev.preventDefault();
+        var data = ev.dataTransfer.getData("text");
+        var draggedElement = document.getElementById(data);
+        var dropzone = ev.target.closest('.module-item');
+        
+        if (dropzone && draggedElement !== dropzone) {
+            var list = document.getElementById('module-list');
+            var allElements = Array.from(list.getElementsByClassName('module-item'));
+            var draggedIndex = allElements.indexOf(draggedElement);
+            var dropIndex = allElements.indexOf(dropzone);
+            
+            if (draggedIndex > dropIndex) {
+                list.insertBefore(draggedElement, dropzone);
+            } else {
+                list.insertBefore(draggedElement, dropzone.nextSibling);
+            }
+        }
+    }
+
+    function toggleModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function toggleScreen(screenId) {
+        const screen = document.getElementById(screenId);
+        const dashboard = document.getElementById('dashboard');
+        if (currentScreen === 'dashboard') {
+            dashboard.style.display = 'none';
+            screen.style.display = 'block';
+            currentScreen = screenId;
+            updateStatsScreen();
+        } else {
+            screen.style.display = 'none';
+            dashboard.style.display = 'block';
+            currentScreen = 'dashboard';
+        }
+    }
+
+    function openModuleDetail(title) {
+        document.getElementById('module-title-modal').innerText = title;
+        toggleModal('module-modal');
+    }
+
+    function completeDailyTasks() {
+        if (completedModules < totalModules) {
+            completedModules++;
+            points += 10;
+            updateProgress();
+            
+            if (completedModules === totalModules) {
+                dailyStreak++;
+                points += 50;
+                document.getElementById('streak-count').innerText = dailyStreak;
+                alert('ممتاز! لقد أتممت مهام اليوم. ربحت مكافأة إضافية!');
+            }
+        } else {
+            alert('لقد أتممت كل مهام المسار لهذا اليوم!');
+        }
+    }
+
+    function updateProgress() {
+        document.getElementById('points-count').innerText = points;
+        document.getElementById('progress-text').innerText = `${completedModules}/${totalModules}`;
+        document.getElementById('progress-bar').style.width = `${(completedModules / totalModules) * 100}%`;
+    }
+
+    function updateStatsScreen() {
+        document.getElementById('stats-progress').innerText = `${completedModules}/${totalModules}`;
+        document.getElementById('stats-progress-bar').style.width = `${(completedModules / totalModules) * 100}%`;
+        document.getElementById('stats-points').innerText = points;
+        document.getElementById('stats-streak').innerText = dailyStreak;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chat-inp');
+        const text = input.value;
+        if (text.trim() !== '') {
+            const container = document.getElementById('chat-container');
+            container.innerHTML += `<div class="chat-message user">أنت: ${text}</div>`;
+            input.value = '';
+            
+            setTimeout(() => {
+                container.innerHTML += `<div class="chat-message ai">المساعد: أنا هنا لمساعدتك في فهم المواد الدراسية.</div>`;
+                container.scrollTop = container.scrollHeight;
+            }, 500);
+        }
+    }
+</script>
+
+</body>
+</html>
